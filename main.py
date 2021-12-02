@@ -22,7 +22,7 @@ def generateStartingPoints():
 def generateOtherPoints(pa, op):
     count = 0
 
-    while count != 5000:
+    while count != 20000:
         rand_num = random.randrange(0, len(pa))
         random_point = pa[rand_num]
         point = []
@@ -73,7 +73,7 @@ def assign_clusters(other_points, centroids, clusters):
 
 
 # vykresli body
-def printGraph(k, clusters_arr):
+def printGraph(k, clusters_arr, h):
     colors = ["black", "green", "orange", "red", "blue", "magenta", "yellow", "purple", "pink", "gray", "brown",
               "salmon", "chocolate", "lightgreen", "hotpink", "navy", "violet", "gold", "olive", "cyan", " lime",
               "olivedrab"]
@@ -81,7 +81,7 @@ def printGraph(k, clusters_arr):
         points_x, points_y = createXY_arrays(clusters_arr[i])
         plt.scatter(points_x, points_y, 1, marker="o", facecolors="none", edgecolors=colors[i])
         #plt.scatter(points_x, points_y, 1)
-    # plt.savefig("obr/" + str(h) + ".png")
+    #plt.savefig("obr/" + str(h) + ".png")
     plt.show()
 
 
@@ -93,16 +93,6 @@ def k_mean(k, other_points):
     plt.show()
 
     clusters = []
-    centroids = []
-    counter = k
-
-    """
-    while counter != 0: # vytvori centroidy z bodov
-        centroid = random.choice(other_points)
-        if centroid not in centroids:
-            centroids.append(centroid)
-            counter -= 1
-    """
     centroids = generateStartingPoints()
 
     for i in centroids:  # prida centroidy do klusterov
@@ -115,10 +105,11 @@ def k_mean(k, other_points):
     for i in clusters:  # vymaze centroidy z clusterov
         del i[0]
 
-    printGraph(k, clusters)
+    printGraph(k, clusters, 0)
 
     # other iterations
     clusters_old = []
+    h = 1
     while True:
         centroids.clear()
 
@@ -154,8 +145,8 @@ def k_mean(k, other_points):
         clusters_old.clear()
         for i in clusters:
             clusters_old.append(i)
-
-    printGraph(k, clusters)
+        h += 1
+    printGraph(k, clusters, h)
 
     # return clusters
 
@@ -169,19 +160,8 @@ def main():
 
     k = 20
     # clusters_arr = k_mean(k, other_points)
+
     k_mean(k, other_points)
-
-    """
-    points_x, points_y = createXY_arrays(points_array)
-    plt.scatter(points_x, points_y, 1, color='black', marker="o", facecolors="none", edgecolors="black")
-
-    points_x, points_y = createXY_arrays(other_points)
-    plt.scatter(points_x, points_y, 1, color='black', marker="o", facecolors="none", edgecolors="black")
-    plt.savefig("0.png")
-
-    plt.show()
-    """
-    # printGraph(k, clusters_arr)
 
 
 if __name__ == '__main__':
