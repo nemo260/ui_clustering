@@ -1,6 +1,7 @@
 import random
 import matplotlib.pyplot as plt
 import time
+import numpy as np
 
 
 # vygeneruje prvych 20 bodov
@@ -19,11 +20,26 @@ def generateStartingPoints(k):
     return pa
 
 
+def create_matrix_of_distances(places):
+    matrix = []
+    for i in places:
+        new = []
+        for j in places:
+            if i == j:
+                distance = 0
+            else:
+                distance = ((j[0] - i[0]) ** 2 + (j[1] - i[1]) ** 2) ** 0.5
+            new.append(distance)
+        matrix.append(new)
+
+    return matrix
+
+
 # vygeneruje zvyšne body
-def generateOtherPoints(pa, op):
+def generateOtherPoints(pa, op, num):
     count = 0
 
-    while count != 1000:
+    while count != num:
         rand_num = random.randrange(0, len(pa))
         random_point = pa[rand_num]
         point = []
@@ -82,9 +98,33 @@ def printGraph(k, clusters_arr, title, h):
         points_x, points_y = createXY_arrays(clusters_arr[i])
         plt.scatter(points_x, points_y, 1, marker="o", facecolors="none", edgecolors=colors[i])
         # plt.scatter(points_x, points_y, 1)
-    #plt.savefig("obr/" + str(h) + ".png")
+    # plt.savefig("obr/" + str(h) + ".png")
     plt.suptitle(title)
     plt.show()
+
+
+def create_matrix(clusters, matrix):
+    # matica vzdialenosti každeho clustra s každym
+    for i in range(len(clusters)):
+        for y in range(len(clusters)):
+            if clusters[i][0] == clusters[y][0]:
+                distance = 82548254
+            else:
+                distance = ((clusters[i][0][0] - clusters[y][0][0]) ** 2 + (clusters[i][0][1] - clusters[y][0][1]) ** 2) ** 0.5
+            matrix[i][y] = distance
+    return matrix
+
+
+def resize_matrix(clusters, matrix):
+    matrix = np.append(matrix, np.array([[np.uint16(82548254) for _ in range(len(matrix))]]), 0)
+    matrix = np.append(matrix, np.array([[np.uint16(82548254)] for _ in range(len(matrix))]), 1)
+
+    for i in range(len(matrix) - 1):
+        distance = ((clusters[i][0][0] - clusters[-1][0][0]) ** 2 + (clusters[i][0][1] - clusters[-1][0][1]) ** 2) ** 0.5
+        matrix[-1][i] = distance
+        matrix[i][-1] = distance
+
+    return matrix
 
 
 def k_mean(k, other_points):
@@ -101,7 +141,7 @@ def k_mean(k, other_points):
     for i in clusters:  # vymaze centroidy z clusterov
         del i[0]
     """
-    #printGraph(k, clusters, 0, "Centroid - 0 iterations")
+    # printGraph(k, clusters, 0, "Centroid - 0 iterations")
 
     # other iterations
     clusters_old = []
@@ -158,7 +198,7 @@ def k_mean_medoid(k, other_points):
     # first iteration
     clusters = assign_clusters(other_points, medoids, clusters)
 
-    #printGraph(k, clusters, 0, "Medoid - 0 iterations")
+    # printGraph(k, clusters, 0, "Medoid - 0 iterations")
 
     # other iterations
     clusters_old = []
@@ -202,7 +242,7 @@ def divisive(k, other_points):
     centroids = []
     clusters = k_mean(2, other_points)
     h = 0
-    #printGraph(len(clusters), clusters, "Divisive", h)
+    # printGraph(len(clusters), clusters, "Divisive", h)
     for i in clusters:
         centroids.append(i[0])
     h += 1
@@ -223,7 +263,7 @@ def divisive(k, other_points):
         in_cluster = k_mean(2, biggest_cluster)
         clusters.append(in_cluster[0])
         clusters.append(in_cluster[1])
-        #printGraph(len(clusters), clusters, "Divisive", h)
+        # printGraph(len(clusters), clusters, "Divisive", h)
         h += 1
     for i in clusters:
         del i[0]
@@ -237,71 +277,58 @@ def aglo(k, other_points):
         new = [i]
         clusters.append(new)
 
-    centroids = []
+    # matica vzdialenosti každeho clustra s každym
+    matrix = np.zeros(len(other_points)**2).reshape(len(other_points),len(other_points))
+    matrix = create_matrix(clusters, matrix)
+
     while k != len(clusters):
-        centroids.clear()
-        # do clustrov prida na začiatok centroidy
-        hh = 5
-        for i in clusters:
-            if len(i) == 1:
-                centroids.append(i[0])
-            elif len(i) == 0:
-                new_centroid = [random.randrange(-5000, 5001), random.randrange(-5000, 5001)]
-                centroids.append(new_centroid)
-            else:
-                average_x = 0
-                average_y = 0
-                for q in i:
-                    average_x += q[0]
-                    average_y += q[1]
-                average_x = average_x / len(i)
-                average_y = average_y / len(i)
-                centroid = [int(average_x), int(average_y)]
-                centroids.append(centroid)
-                i.insert(0, centroid)
+        # zisti 2 najblizsie clustre
+        lowest_dist = matrix.min()
+        closest_pair = np.where(matrix == lowest_dist)
+        closest_pair = [max(closest_pair[0][0], closest_pair[1][0]), min(closest_pair[0][0], closest_pair[1][0])]
 
-        # zisti 2 najblizsie centroidy
-        smallest_dist = 82548254
-        q = 0
-        p = 0
-        centroid1 = []
-        centroid2 = []
-        for i in range(len(clusters)):
-            for y in range(len(clusters)):
-                distance = ((clusters[i][0][0] - clusters[y][0][0]) ** 2 + (clusters[i][0][1] - clusters[y][0][1]) ** 2) ** 0.5
-                if distance != 0 and distance < smallest_dist:
-                    smallest_dist = distance
-                    centroid1 = clusters[i][0]
-                    centroid2 = clusters[y][0]
-                    q = i
-                    p = y
+        # spoji clustre, vymaze ich a prida do clustrov spojeny cluster
+        cluster = []
+        centroid_x = 0
+        centroid_y = 0
+        if len(clusters[closest_pair[0]]) > 1:
+            cl = clusters[closest_pair[0]]
+            del cl[0]
+        if len(clusters[closest_pair[1]]) > 1:
+            cl = clusters[closest_pair[1]]
+            del cl[0]
+        for i in clusters[closest_pair[0]]:
+            cluster.append(i)
+        for i in clusters[closest_pair[1]]:
+            cluster.append(i)
+        for i in cluster:
+            centroid_x += i[0]
+            centroid_y += i[1]
+        centroid = [int(centroid_x / len(cluster)), int(centroid_y / len(cluster))]
+        cluster.insert(0, centroid)
+        if closest_pair[0] > closest_pair[1]:
+            del clusters[closest_pair[0]]
+            del clusters[closest_pair[1]]
+        else:
+            del clusters[closest_pair[1]]
+            del clusters[closest_pair[0]]
 
-        # podla centroid spoji clustre
-        stop = False
-        for i in clusters:
-            for y in clusters:
-                if i[0] == centroid1 and y[0] == centroid2:
-                    new = []
-                    new_can_x = centroid1[0] + centroid2[0]
-                    new_can_y = centroid1[1] + centroid2[1]
-                    new_cen = [int(new_can_x)/2, int(new_can_y)/2]
-                    new.append(new_cen)
-                    if len(i) != 1:
-                        del i[0]
-                    for j in i:
-                        new.append(j)
-                    if len(y) != 1:
-                        del y[0]
-                    for j in y:
-                        new.append(j)
-                    clusters.remove(i)
-                    clusters.remove(y)
-                    clusters.append(new)
-                    stop = True
-                    break
-            if stop:
-                break
+        clusters.append(cluster)
 
+        # updatne maticu
+        if closest_pair[0] > closest_pair[1]:
+            matrix = np.delete(matrix, closest_pair[0], 0)
+            matrix = np.delete(matrix, closest_pair[0], 1)
+            matrix = np.delete(matrix, closest_pair[1], 0)
+            matrix = np.delete(matrix, closest_pair[1], 1)
+        else:
+            matrix = np.delete(matrix, closest_pair[1], 0)
+            matrix = np.delete(matrix, closest_pair[1], 1)
+            matrix = np.delete(matrix, closest_pair[0], 0)
+            matrix = np.delete(matrix, closest_pair[0], 1)
+        matrix = resize_matrix(clusters, matrix)
+
+        print(len(clusters))
     return clusters
 
 
@@ -309,7 +336,9 @@ def main():
     other_points = []
 
     points_array = generateStartingPoints(20)
-    generateOtherPoints(points_array, other_points)
+    num = int(input("Zadaj počet bodov: "))
+    k = int(input("Zadaj počet zhlukov: "))
+    generateOtherPoints(points_array, other_points, num)
 
     points_x, points_y = createXY_arrays(other_points)
     plt.scatter(points_x, points_y, 1, color='black', marker="o", facecolors="none", edgecolors="black")
@@ -317,7 +346,6 @@ def main():
     plt.show()
     # matrix_of_distances = create_matrix_of_distances(other_points)
 
-    k = 20
 
     # k-mean centroid
     time_start = time.time()
